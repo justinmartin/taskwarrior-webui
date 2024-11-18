@@ -36,11 +36,12 @@
               mkdir -p "$out"
               cp -rv . "$out"
             '';
-          };
-          meta = with pkgs.lib; {
-            description = "A Web UI for Taskwarrior";
-            license = licenses.mit;
-            maintainers = [ "justinmartin" ];
+            meta = {
+              description = "A Web UI for Taskwarrior";
+              license = lib.licenses.gpl3;
+              maintainers = [ "justinmartin" ];
+              platforms = lib.platforms.all;
+            };
           };
 
           frontend = pkgs.buildNpmPackage {
@@ -63,10 +64,11 @@
               mkdir -p "$out"
               cp -rv . "$out"
             '';
-            meta = with pkgs.lib; {
+            meta = {
               description = "A Web UI for Taskwarrior Frontend";
-              license = licenses.mit;
+              license = lib.licenses.mit;
               maintainers = [ "justinmartin" ];
+              platforms = lib.platforms.all;
             };
           };
           combined = pkgs.stdenv.mkDerivation {
@@ -85,12 +87,13 @@
               cp -rv ${self.packages.${system}.frontend}/. $out/frontend
               # Copy the startup script to the output bin directory
               mkdir -p "$out/bin"
-              cp ${self.startBackendScript}/bin/start-backend-server "$out/bin/"
+              # cp ${self.packages.${system}.startBackendScript}/bin/start-backend-server "$out/bin/"
             '';
-            meta = with pkgs.lib; {
+            meta = {
               description = "A Web UI for Taskwarrior (Combined)";
-              license = licenses.mit;
+              license = lib.licenses.gpl3;
               maintainers = [ "justinmartin" ];
+              platforms = lib.platforms.all;
             };
           };
 
@@ -108,5 +111,81 @@
         program = "${self.packages.${system}.startBackendScript}/bin/start-backend-server";
       });
 
+      nixosModules = forAllSystems (system: {
+        config =
+          {
+            config,
+            lib,
+            ...
+          }:
+          {
+            options.taskwarrior-webui = {
+              enable = lib.mkEnableOption "Enable the Taskwarrior Web UI service.";
+              user = lib.mkOption {
+                type = lib.types.str;
+                default = "taskwarrior";
+                description = "The user to run the Taskwarrior Web UI service as.";
+              };
+              group = lib.mkOption {
+                type = lib.types.str;
+                default = "taskwarrior";
+                description = "The group to run the Taskwarrior Web UI service as.";
+              };
+              port = lib.mkOption {
+                type = lib.types.int;
+                default = 3000;
+                description = "The port for the Taskwarrior Web UI service.";
+              };
+            };
+
+            config = lib.mkIf config.taskwarrior-webui.enable {
+              systemd.services.taskwarrior-webui-backend = {
+                description = "Taskwarrior Web UI Backend";
+                after = [ "network.target" ];
+                wantedBy = [ "multi-user.target" ];
+                serviceConfig = {
+                  ExecStart = "${self.packages.${system}.startBackendScript}/bin/start-backend-server";
+                  Restart = "always";
+                  User = config.taskwarrior-webui.user;
+                  Group = config.taskwarrior-webui.group;
+                  Environment = "PORT=${toString config.taskwarrior-webui.port}";
+                };
+              };
+            };
+          };
+      });
+
+      homeManagerModules = forAllSystems (system: {
+        taskwarrior-webui =
+          {
+            config,
+            lib,
+            pkgs,
+            ...
+          }:
+          {
+            options.taskwarrior-webui = {
+              enable = lib.mkEnableOption "Enable the Taskwarrior Web UI user service.";
+              port = lib.mkOption {
+                type = lib.types.int;
+                default = 3000;
+                description = "The port for the Taskwarrior Web UI service.";
+              };
+            };
+
+            config = lib.mkIf config.taskwarrior-webui.enable {
+              systemd.user.services.taskwarrior-webui-backend = {
+                description = "Taskwarrior Web UI Backend";
+                after = [ "network.target" ];
+                wantedBy = [ "default.target" ];
+                serviceConfig = {
+                  ExecStart = "${self.packages.${system}.startBackendScript}/bin/start-backend-server";
+                  Restart = "always";
+                  Environment = "PORT=${toString config.taskwarrior-webui.port}";
+                };
+              };
+            };
+          };
+      });
     };
 }
