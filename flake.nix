@@ -40,7 +40,7 @@
               description = "A Web UI for Taskwarrior";
               license = lib.licenses.gpl3;
               maintainers = [ "justinmartin" ];
-              platforms = lib.platforms.all;
+              platforms = supportedSystems;
             };
           };
 
@@ -68,7 +68,7 @@
               description = "A Web UI for Taskwarrior Frontend";
               license = lib.licenses.mit;
               maintainers = [ "justinmartin" ];
-              platforms = lib.platforms.all;
+              platforms = supportedSystems;
             };
           };
           combined = pkgs.stdenv.mkDerivation {
@@ -93,7 +93,7 @@
               description = "A Web UI for Taskwarrior (Combined)";
               license = lib.licenses.gpl3;
               maintainers = [ "justinmartin" ];
-              platforms = lib.platforms.all;
+              platforms = supportedSystems;
             };
           };
 
